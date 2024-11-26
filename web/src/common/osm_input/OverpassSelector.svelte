@@ -50,12 +50,17 @@
   // Construct a query to extract all XML data in the polygon clip. See
   // https://wiki.openstreetmap.org/wiki/Overpass_API/Overpass_QL
   function overpassQueryForPolygon(feature: Feature<Polygon>): string {
-    let filter = 'poly:"';
+    let geoFilter = 'poly:"';
     for (let [lng, lat] of feature.geometry.coordinates[0]) {
-      filter += `${lat} ${lng} `;
+      geoFilter += `${lat} ${lng} `;
     }
-    filter = filter.slice(0, -1) + '"';
-    let query = `(nwr(${filter}); node(w)->.x; <;); out meta;`;
+    geoFilter = geoFilter.slice(0, -1) + '"';
+
+    let datetime_filter = localStorage.getItem("settings_datetime")
+      ? `[date:"${localStorage.getItem("settings_datetime")}"];`
+      : "";
+
+    let query = `${datetime_filter}(nwr(${geoFilter}); node(w)->.x; <;); out meta;`;
     return `https://overpass-api.de/api/interpreter?data=${query}`;
   }
 

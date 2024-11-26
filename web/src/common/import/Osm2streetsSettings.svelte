@@ -11,6 +11,14 @@
 
   let date_time: string;
   $: settings.date_time = date_time && date_time + ":00";
+
+  function updateWindowSettingDateTime(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const date = new Date(input.value);
+    const formattedDate = date.toISOString().slice(0, 19) + "Z";
+
+    localStorage.setItem("settings_datetime", formattedDate);
+  }
 </script>
 
 <details>
@@ -65,7 +73,11 @@
   <div>
     Change the time and date:
     <label>
-      <input type="datetime-local" bind:value={date_time} />
+      <input
+        type="datetime-local"
+        bind:value={date_time}
+        on:change={updateWindowSettingDateTime}
+      />
     </label>
   </div>
 
