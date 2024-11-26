@@ -81,7 +81,6 @@ impl StreetNetwork {
                 let buffer_ends = Distance::meters(5.0);
                 let arrow_len = Distance::meters(3.5);
                 let thickness = Distance::meters(0.25);
-                let turn_arrow_len = Distance::meters(2.5);
 
                 for (pt, angle) in center.step_along(step_size, buffer_ends) {
                     let allowed_turns: Vec<_> = lane.allowed_turns.iter().collect();
@@ -106,9 +105,8 @@ impl StreetNetwork {
                                 .project_away(Distance::meters(2.1), angle) // move up
                                 .project_away(Distance::meters(0.5), angle.rotate_degs(90.0)); // move right
                             let arrow = PolyLine::must_new(vec![
-                                offset_pt.project_away(turn_arrow_len / 2.0, angle.opposite()),
-                                offset_pt
-                                    .project_away(turn_arrow_len / 2.0, angle.rotate_degs(-110.0)),
+                                offset_pt.project_away(arrow_len / 2.8, angle.opposite()),
+                                offset_pt.project_away(arrow_len / 2.8, angle.rotate_degs(-110.0)),
                             ])
                             .make_arrow(thickness * 2.0, ArrowCap::Triangle);
                             // .get_outer_ring()
@@ -143,9 +141,8 @@ impl StreetNetwork {
                                 .project_away(Distance::meters(2.1), angle) // move up
                                 .project_away(Distance::meters(0.5), angle.rotate_degs(-90.0)); // move right
                             let arrow = PolyLine::must_new(vec![
-                                offset_pt.project_away(turn_arrow_len / 2.0, angle.opposite()),
-                                offset_pt
-                                    .project_away(turn_arrow_len / 2.0, angle.rotate_degs(110.0)),
+                                offset_pt.project_away(arrow_len / 2.8, angle.opposite()),
+                                offset_pt.project_away(arrow_len / 2.8, angle.rotate_degs(110.0)),
                             ])
                             .make_arrow(thickness * 2.0, ArrowCap::Triangle);
                             // .get_outer_ring()
