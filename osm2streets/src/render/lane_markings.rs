@@ -1,6 +1,7 @@
 use anyhow::Result;
 use geojson::Feature;
 use geom::{ArrowCap, Distance, Line, PolyLine, Polygon};
+use osm2lanes::TurnDirection;
 
 use super::{serialize_features, Filter};
 use crate::{
@@ -78,26 +79,180 @@ impl StreetNetwork {
 
                 let step_size = Distance::meters(20.0);
                 let buffer_ends = Distance::meters(5.0);
-                let arrow_len = Distance::meters(1.75);
+                let arrow_len = Distance::meters(3.5);
                 let thickness = Distance::meters(0.25);
+                let turn_arrow_len = Distance::meters(2.5);
+
                 for (pt, angle) in center.step_along(step_size, buffer_ends) {
-                    let arrow = PolyLine::must_new(vec![
-                        pt.project_away(arrow_len / 2.0, angle.opposite()),
-                        pt.project_away(arrow_len / 2.0, angle),
-                    ])
-                    .make_arrow(thickness * 2.0, ArrowCap::Triangle)
-                    .get_outer_ring()
-                    .to_outline(thickness / 2.0);
-                    let mut f = Feature::from(arrow.to_geojson(gps_bounds));
-                    f.set_property("type", "lane arrow");
-                    f.set_property("layer", road.layer);
-                    features.push(f);
+                    let allowed_turns: Vec<_> = lane.allowed_turns.iter().collect();
+                    match allowed_turns.as_slice() {
+                        [] | [TurnDirection::Through] => {
+                            // 直箭头
+                            let arrow = PolyLine::must_new(vec![
+                                pt.project_away(arrow_len / 2.0, angle.opposite()),
+                                pt.project_away(arrow_len / 2.0, angle),
+                            ])
+                            .make_arrow(thickness * 2.0, ArrowCap::Triangle);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f = Feature::from(arrow.to_geojson(gps_bounds));
+                            f.set_property("type", "lane arrow");
+                            f.set_property("layer", road.layer);
+                            features.push(f);
+                        }
+                        [TurnDirection::Left] => {
+                            // draw arrow
+                            let offset_pt = pt
+                                .project_away(Distance::meters(2.1), angle) // move up
+                                .project_away(Distance::meters(0.5), angle.rotate_degs(90.0)); // move right
+                            let arrow = PolyLine::must_new(vec![
+                                offset_pt.project_away(turn_arrow_len / 2.0, angle.opposite()),
+                                offset_pt
+                                    .project_away(turn_arrow_len / 2.0, angle.rotate_degs(-110.0)),
+                            ])
+                            .make_arrow(thickness * 2.0, ArrowCap::Triangle);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_arrow = Feature::from(arrow.to_geojson(gps_bounds));
+                            f_arrow.set_property("type", "lane arrow");
+                            f_arrow.set_property("layer", road.layer);
+                            features.push(f_arrow);
+
+                            // draw rectangle
+                            let rect_width = Distance::meters(0.5);
+                            let rect_len = Distance::meters(1.4);
+
+                            let offset_pt = pt
+                                .project_away(Distance::meters(0.35), angle.opposite()) // move down
+                                .project_away(Distance::meters(0.4), angle.rotate_degs(90.0)); // move right
+                            let rec = PolyLine::must_new(vec![
+                                offset_pt.project_away(rect_len, angle.opposite()),
+                                offset_pt.project_away(rect_len, angle),
+                            ])
+                            .make_polygons(rect_width);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_rect = Feature::from(rec.to_geojson(gps_bounds));
+                            f_rect.set_property("type", "lane arrow");
+                            f_rect.set_property("layer", road.layer);
+                            features.push(f_rect);
+                        }
+                        [TurnDirection::Right] => {
+                            // draw arrow
+                            let offset_pt = pt
+                                .project_away(Distance::meters(2.1), angle) // move up
+                                .project_away(Distance::meters(0.5), angle.rotate_degs(-90.0)); // move right
+                            let arrow = PolyLine::must_new(vec![
+                                offset_pt.project_away(turn_arrow_len / 2.0, angle.opposite()),
+                                offset_pt
+                                    .project_away(turn_arrow_len / 2.0, angle.rotate_degs(110.0)),
+                            ])
+                            .make_arrow(thickness * 2.0, ArrowCap::Triangle);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_arrow = Feature::from(arrow.to_geojson(gps_bounds));
+                            f_arrow.set_property("type", "lane arrow");
+                            f_arrow.set_property("layer", road.layer);
+                            features.push(f_arrow);
+
+                            // draw rectangle
+                            let rect_width = Distance::meters(0.5);
+                            let rect_len = Distance::meters(1.4);
+
+                            let offset_pt = pt
+                                .project_away(Distance::meters(0.35), angle.opposite()) // move down
+                                .project_away(Distance::meters(0.4), angle.rotate_degs(-90.0)); // move right
+                            let rec = PolyLine::must_new(vec![
+                                offset_pt.project_away(rect_len, angle.opposite()),
+                                offset_pt.project_away(rect_len, angle),
+                            ])
+                            .make_polygons(rect_width);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_rect = Feature::from(rec.to_geojson(gps_bounds));
+                            f_rect.set_property("type", "lane arrow");
+                            f_rect.set_property("layer", road.layer);
+                            features.push(f_rect);
+                        }
+                        [TurnDirection::Through, TurnDirection::Left]
+                        | [TurnDirection::Left, TurnDirection::Through] => {
+                            let turn_arrow_len = Distance::meters(3.0);
+
+                            // arrow straight
+                            let offset_pt =
+                                pt.project_away(Distance::meters(0.3), angle.rotate_degs(90.0)); // 偏移10个单位
+                            let arrow_t = PolyLine::must_new(vec![
+                                offset_pt.project_away(arrow_len / 2.0, angle.opposite()),
+                                offset_pt.project_away(arrow_len / 2.0, angle),
+                            ])
+                            .make_arrow(thickness * 2.0, ArrowCap::Triangle);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_t = Feature::from(arrow_t.to_geojson(gps_bounds));
+                            f_t.set_property("type", "lane arrow");
+                            f_t.set_property("layer", road.layer);
+                            features.push(f_t);
+
+                            // arrow right
+                            let offset_pt = pt
+                                .project_away(Distance::meters(0.2), angle.rotate_degs(90.0))
+                                .project_away(Distance::meters(0.8), angle); // 偏移10个单位
+                            let arrow_r = PolyLine::must_new(vec![
+                                offset_pt.project_away(turn_arrow_len / 2.0, angle.opposite()),
+                                offset_pt
+                                    .project_away(turn_arrow_len / 2.0, angle.rotate_degs(-110.0)),
+                            ])
+                            .make_arrow(thickness * 2.0, ArrowCap::Triangle);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_l = Feature::from(arrow_r.to_geojson(gps_bounds));
+                            f_l.set_property("type", "lane arrow");
+                            f_l.set_property("layer", road.layer);
+                            features.push(f_l);
+                        }
+                        [TurnDirection::Through, TurnDirection::Right]
+                        | [TurnDirection::Right, TurnDirection::Through] => {
+                            let turn_arrow_len = Distance::meters(3.0);
+
+                            // arrow straight
+                            let offset_pt =
+                                pt.project_away(Distance::meters(0.3), angle.rotate_degs(-90.0)); // 偏移10个单位
+                            let arrow_t = PolyLine::must_new(vec![
+                                offset_pt.project_away(arrow_len / 2.0, angle.opposite()),
+                                offset_pt.project_away(arrow_len / 2.0, angle),
+                            ])
+                            .make_arrow(thickness * 2.0, ArrowCap::Triangle);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_t = Feature::from(arrow_t.to_geojson(gps_bounds));
+                            f_t.set_property("type", "lane arrow");
+                            f_t.set_property("layer", road.layer);
+                            features.push(f_t);
+
+                            // arrow right
+                            let offset_pt = pt
+                                .project_away(Distance::meters(0.2), angle.rotate_degs(-90.0))
+                                .project_away(Distance::meters(0.8), angle); // 偏移10个单位
+                            let arrow_r = PolyLine::must_new(vec![
+                                offset_pt.project_away(turn_arrow_len / 2.0, angle.opposite()),
+                                offset_pt
+                                    .project_away(turn_arrow_len / 2.0, angle.rotate_degs(110.0)),
+                            ])
+                            .make_arrow(thickness * 2.0, ArrowCap::Triangle);
+                            // .get_outer_ring()
+                            // .to_outline(thickness / 2.0);
+                            let mut f_r = Feature::from(arrow_r.to_geojson(gps_bounds));
+                            f_r.set_property("type", "lane arrow");
+                            f_r.set_property("layer", road.layer);
+                            features.push(f_r);
+                        }
+                        _ => continue, // 其他转向类型暂不处理
+                    }
                 }
             }
 
             // Add stripes to show most buffers.
             for (lane, center) in road.lane_specs_ltr.iter().zip(lane_centers.iter()) {
-                // TODO Revisit rendering for different buffer types
                 if !matches!(lane.lt, LaneType::Buffer(_)) {
                     continue;
                 }

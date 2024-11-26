@@ -37,7 +37,7 @@
         },
         "red",
       ),
-      "fill-opacity": 0.9,
+      "fill-opacity": 1,
     }}
   />
 </GeoJSON>
